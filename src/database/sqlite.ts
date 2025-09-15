@@ -3,6 +3,8 @@ import type { Point } from '@/types';
 
 let SQL: any = null;
 let db: any = null;
+let fallbackMode = false;
+let fallbackData: Point[] = [];
 
 // Инициализация SQLite
 export async function initDatabase(): Promise<void> {
@@ -10,7 +12,13 @@ export async function initDatabase(): Promise<void> {
     // Загружаем SQL.js
     SQL = await initSqlJs({
       // Используем CDN для загрузки wasm файла
-      locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+      locateFile: (file: string) => {
+        // В production используем CDN, в dev - локальные файлы
+        if (import.meta.env.PROD) {
+          return `https://sql.js.org/dist/${file}`;
+        }
+        return `/node_modules/sql.js/dist/${file}`;
+      }
     });
     
     // Создаем новую базу данных
@@ -38,7 +46,14 @@ export async function initDatabase(): Promise<void> {
     console.log('База данных SQLite инициализирована');
   } catch (error) {
     console.error('Ошибка инициализации базы данных:', error);
-    throw error;
+    
+    // Если не удалось загрузить sql.js, создаем заглушку
+    if (error instanceof Error && error.message.includes('sql.js')) {
+      console.warn('SQL.js не загружен, используем заглушку');
+      initFallbackDatabase();
+    } else {
+      throw error;
+    }
   }
 }
 
@@ -64,6 +79,10 @@ function insertSampleData(): void {
 
 // Получение всех точек
 export function getAllPoints(): Point[] {
+  if (fallbackMode) {
+    return [...fallbackData];
+  }
+  
   try {
     const result = db.exec('SELECT * FROM points ORDER BY name');
     if (result.length === 0) return [];
@@ -71,7 +90,9 @@ export function getAllPoints(): Point[] {
     return result[0].values.map((row: any[]) => ({
       id: row[0],
       coordinates: row[1],
-      name: row[2]
+      name: row[2],
+      description: row[3] || '',
+      createdAt: row[4] || new Date().toISOString()
     }));
   } catch (error) {
     console.error('Ошибка получения точек:', error);
@@ -81,6 +102,10 @@ export function getAllPoints(): Point[] {
 
 // Получение точки по ID
 export function getPointById(id: number): Point | null {
+  if (fallbackMode) {
+    return fallbackData.find(point => point.id === id) || null;
+  }
+  
   try {
     const result = db.exec('SELECT * FROM points WHERE id = ?', [id]);
     if (result.length === 0) return null;
@@ -89,7 +114,9 @@ export function getPointById(id: number): Point | null {
     return {
       id: row[0],
       coordinates: row[1],
-      name: row[2]
+      name: row[2],
+      description: row[3] || '',
+      createdAt: row[4] || new Date().toISOString()
     };
   } catch (error) {
     console.error('Ошибка получения точки:', error);
@@ -127,6 +154,11 @@ export function deletePoint(id: number): boolean {
 
 // Сохранение базы данных в localStorage
 export function saveDatabase(): void {
+  if (fallbackMode) {
+    saveFallbackData();
+    return;
+  }
+  
   try {
     if (!db) return;
     
@@ -169,4 +201,43 @@ export function loadDatabase(): boolean {
 // Получение экземпляра базы данных
 export function getDatabase() {
   return db;
+}
+
+// Инициализация заглушки базы данных
+function initFallbackDatabase(): void {
+  fallbackMode = true;
+  
+  // Загружаем данные из localStorage
+  const saved = localStorage.getItem('compass_fallback_data');
+  if (saved) {
+    try {
+      fallbackData = JSON.parse(saved);
+    } catch (error) {
+      console.error('Ошибка загрузки данных из localStorage:', error);
+      fallbackData = [];
+    }
+  }
+  
+  // Если данных нет, добавляем тестовые
+  if (fallbackData.length === 0) {
+    fallbackData = [
+      { id: 1, coordinates: '37.6173,55.7558', name: 'Красная площадь', description: '', createdAt: new Date().toISOString() },
+      { id: 2, coordinates: '37.6112,55.7522', name: 'Храм Христа Спасителя', description: '', createdAt: new Date().toISOString() },
+      { id: 3, coordinates: '37.6048,55.7481', name: 'Парк Горького', description: '', createdAt: new Date().toISOString() },
+      { id: 4, coordinates: '37.6201,55.7539', name: 'ГУМ', description: '', createdAt: new Date().toISOString() },
+      { id: 5, coordinates: '37.6156,55.7520', name: 'Мавзолей Ленина', description: '', createdAt: new Date().toISOString() }
+    ];
+    saveFallbackData();
+  }
+  
+  console.log('Заглушка базы данных инициализирована');
+}
+
+// Сохранение данных заглушки
+function saveFallbackData(): void {
+  try {
+    localStorage.setItem('compass_fallback_data', JSON.stringify(fallbackData));
+  } catch (error) {
+    console.error('Ошибка сохранения данных заглушки:', error);
+  }
 }

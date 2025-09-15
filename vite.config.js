@@ -20,10 +20,9 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ['sql.js'],
       output: {
-        globals: {
-          'sql.js': 'initSqlJs'
+        manualChunks: {
+          'sql-js': ['sql.js']
         }
       }
     }
@@ -31,5 +30,8 @@ export default defineConfig({
   server: {
     https: false, // для Telegram Mini Apps нужен HTTPS в продакшене
     port: 5173
+  },
+  define: {
+    global: 'globalThis',
   }
 })

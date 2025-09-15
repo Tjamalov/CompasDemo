@@ -1,7 +1,7 @@
 // Утилиты для работы с маршрутами и навигацией
 
 import type { Location, RouteData, Point } from '@/types';
-import { getWalkingRoute, getDirectBearing, formatDistance, formatDuration } from './mapbox';
+import { getWalkingRoute, getWalkingRouteWithGeometry, getDirectBearing, formatDistance, formatDuration } from './mapbox';
 import { calculateDistance, calculateBearing } from './geolocation';
 
 export interface RouteCalculationOptions {
@@ -47,6 +47,63 @@ export async function calculateRoute(
     return route;
   } catch (error) {
     console.error('Ошибка вычисления маршрута:', error);
+    return null;
+  }
+}
+
+// Вычисление маршрута с геометрией для карты
+export async function calculateRouteWithGeometry(
+  currentLocation: Location,
+  targetPoint: Point,
+  options: RouteCalculationOptions = {}
+): Promise<{ routeData: RouteData; geometry: any } | null> {
+  const {
+    useMapbox = true,
+    fallbackToDirect = true
+  } = options;
+
+  try {
+    // Парсим координаты точки назначения
+    const [lng, lat] = targetPoint.coordinates.split(',').map(Number);
+    const targetLocation: Location = { latitude: lat, longitude: lng };
+
+    let result: { routeData: RouteData; geometry: any } | null = null;
+
+    // Пытаемся получить пешеходный маршрут с геометрией через Mapbox
+    if (useMapbox) {
+      result = await getWalkingRouteWithGeometry(currentLocation, targetLocation);
+    }
+
+    // Если маршрут не получен, используем прямое направление
+    if (!result && fallbackToDirect) {
+      const bearing = getDirectBearing(currentLocation, targetLocation);
+      const distance = calculateDistance(currentLocation, targetLocation);
+      
+      const routeData: RouteData = {
+        distance: Math.round(distance),
+        bearing: Math.round(bearing),
+        duration: Math.round(distance / 1.4) // предполагаемая скорость пешехода 1.4 м/с
+      };
+
+      // Создаем простую геометрию для прямой линии
+      const geometry = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [currentLocation.longitude, currentLocation.latitude],
+            [targetLocation.longitude, targetLocation.latitude]
+          ]
+        }
+      };
+
+      result = { routeData, geometry };
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Ошибка вычисления маршрута с геометрией:', error);
     return null;
   }
 }
@@ -110,7 +167,7 @@ export function formatRouteData(route: RouteData | null): {
 
   return {
     distance: formatDistance(route.distance),
-    duration: formatDuration(route.duration),
+    duration: route.duration ? formatDuration(route.duration) : '—',
     bearing: route.bearing
   };
 }

@@ -1,9 +1,5 @@
-<script setup lang="ts">
-import CompassApp from '@/components/CompassApp.vue'
-</script>
-
 <template>
-  <CompassApp />
+  <router-view />
 </template>
 
 <style>

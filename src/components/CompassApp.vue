@@ -30,6 +30,16 @@
           :duration="routeData?.duration || null"
           :error="routeError"
         />
+
+        <div class="map-section">
+          <h3 class="map-title">Маршрут</h3>
+          <MapboxMap
+            :current-location="currentLocation"
+            :selected-point="selectedPoint"
+            :route-geometry="routeGeometry"
+            height="300px"
+          />
+        </div>
       </div>
 
       <div v-else-if="!isLoadingLocation && !locationError" class="empty-state">
@@ -48,13 +58,14 @@ import { MapPinIcon } from '@heroicons/vue/24/outline';
 import type { Point, Location, RouteData, CompassState } from '@/types';
 import { initDatabase, getAllPoints, getPointById, saveDatabase } from '@/database/sqlite';
 import { getCurrentLocation as getCurrentLocationUtil, watchLocation, clearLocationWatch } from '@/utils/geolocation';
-import { calculateRoute } from '@/utils/route';
+import { calculateRoute, calculateRouteWithGeometry } from '@/utils/route';
 import { createCompass, isCompassSupported, requestCompassPermission, type CompassData } from '@/utils/compass';
 import { initTelegram } from '@/utils/telegram';
 import PointSelector from './PointSelector.vue';
 import CompassArrow from './CompassArrow.vue';
 import DistanceDisplay from './DistanceDisplay.vue';
 import LocationStatus from './LocationStatus.vue';
+import MapboxMap from './MapboxMap.vue';
 
 // Состояние приложения
 const state = ref<CompassState>({
@@ -72,6 +83,7 @@ const locationError = ref<string | null>(null);
 const routeError = ref<string | null>(null);
 const points = ref<Point[]>([]);
 const watchId = ref<number | null>(null);
+const routeGeometry = ref<any>(null);
 
 // Состояние компаса
 const deviceHeading = ref(0);
@@ -243,8 +255,8 @@ async function updateRoute(): Promise<void> {
   try {
     routeError.value = null;
     
-    // Используем новую утилиту для вычисления маршрута
-    const route = await calculateRoute(
+    // Получаем маршрут с геометрией для карты
+    const routeWithGeometry = await calculateRouteWithGeometry(
       state.value.currentLocation, 
       state.value.selectedPoint,
       {
@@ -253,7 +265,23 @@ async function updateRoute(): Promise<void> {
       }
     );
     
-    state.value.routeData = route;
+    if (routeWithGeometry) {
+      state.value.routeData = routeWithGeometry.routeData;
+      routeGeometry.value = routeWithGeometry.geometry;
+    } else {
+      // Fallback: используем простой маршрут без геометрии
+      const route = await calculateRoute(
+        state.value.currentLocation, 
+        state.value.selectedPoint,
+        {
+          useMapbox: true,
+          fallbackToDirect: true
+        }
+      );
+      
+      state.value.routeData = route;
+      routeGeometry.value = null;
+    }
   } catch (error) {
     routeError.value = 'Ошибка построения маршрута';
     console.error('Ошибка обновления маршрута:', error);
@@ -304,6 +332,19 @@ onUnmounted(() => {
 }
 
 .compass-section {
+  text-align: center;
+}
+
+.map-section {
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.map-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
   text-align: center;
 }
 

@@ -4,6 +4,8 @@ export interface Point {
   id: number;
   coordinates: string; // "lng,lat"
   name: string;
+  description?: string;
+  createdAt?: string;
 }
 
 export interface Location {

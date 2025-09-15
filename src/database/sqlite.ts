@@ -61,10 +61,10 @@ export async function initDatabase(): Promise<void> {
 function insertSampleData(): void {
   const samplePoints: Omit<Point, 'id'>[] = [
     { coordinates: '37.6173,55.7558', name: 'Красная площадь' },
-    { coordinates: '37.6112,55.7522', name: 'Храм Христа Спасителя' },
-    { coordinates: '37.6048,55.7481', name: 'Парк Горького' },
-    { coordinates: '37.6201,55.7539', name: 'ГУМ' },
-    { coordinates: '37.6156,55.7520', name: 'Мавзолей Ленина' }
+    { coordinates: '86.9250,27.9881', name: 'Гора Эверест' },
+    { coordinates: '107.7500,53.2167', name: 'Озеро Байкал' },
+    { coordinates: '20.4522,54.7104', name: 'Центр Калининграда' },
+    { coordinates: '20.4750,54.9600', name: 'Центр Зеленоградска' }
   ];
   
   const insertQuery = db.prepare('INSERT INTO points (coordinates, name) VALUES (?, ?)');
@@ -135,6 +135,20 @@ export function addPoint(coordinates: string, name: string): Point | null {
   } catch (error) {
     console.error('Ошибка добавления точки:', error);
     return null;
+  }
+}
+
+// Обновление точки
+export function updatePoint(id: number, coordinates: string, name: string): boolean {
+  try {
+    const updateQuery = db.prepare('UPDATE points SET coordinates = ?, name = ? WHERE id = ?');
+    const result = updateQuery.run([coordinates, name, id]);
+    updateQuery.free();
+    
+    return result.changes > 0;
+  } catch (error) {
+    console.error('Ошибка обновления точки:', error);
+    return false;
   }
 }
 
@@ -222,10 +236,10 @@ function initFallbackDatabase(): void {
   if (fallbackData.length === 0) {
     fallbackData = [
       { id: 1, coordinates: '37.6173,55.7558', name: 'Красная площадь', description: '', createdAt: new Date().toISOString() },
-      { id: 2, coordinates: '37.6112,55.7522', name: 'Храм Христа Спасителя', description: '', createdAt: new Date().toISOString() },
-      { id: 3, coordinates: '37.6048,55.7481', name: 'Парк Горького', description: '', createdAt: new Date().toISOString() },
-      { id: 4, coordinates: '37.6201,55.7539', name: 'ГУМ', description: '', createdAt: new Date().toISOString() },
-      { id: 5, coordinates: '37.6156,55.7520', name: 'Мавзолей Ленина', description: '', createdAt: new Date().toISOString() }
+      { id: 2, coordinates: '86.9250,27.9881', name: 'Гора Эверест', description: '', createdAt: new Date().toISOString() },
+      { id: 3, coordinates: '107.7500,53.2167', name: 'Озеро Байкал', description: '', createdAt: new Date().toISOString() },
+      { id: 4, coordinates: '20.4522,54.7104', name: 'Центр Калининграда', description: '', createdAt: new Date().toISOString() },
+      { id: 5, coordinates: '20.4750,54.9600', name: 'Центр Зеленоградска', description: '', createdAt: new Date().toISOString() }
     ];
     saveFallbackData();
   }

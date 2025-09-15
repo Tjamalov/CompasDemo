@@ -33,5 +33,7 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
+    'import.meta.env.VITE_MAPBOX_ACCESS_TOKEN': JSON.stringify(process.env.VITE_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1IjoiY3JlbyIsImEiOiJjbXZ6Z2V6Z2V6Z2V6In0.example'),
+    'import.meta.env.VITE_TELEGRAM_BOT_TOKEN': JSON.stringify(process.env.VITE_TELEGRAM_BOT_TOKEN || ''),
   }
 })

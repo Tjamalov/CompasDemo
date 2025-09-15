@@ -53,7 +53,7 @@ export async function getWalkingRoute(
     if (data.routes && data.routes.length > 0) {
       const route = data.routes[0];
       
-      // Получаем направление первого сегмента маршрута
+      // Получаем направление первого сегмента маршрута для навигации
       const coordinates = route.geometry.coordinates;
       let bearing = 0;
       
@@ -61,7 +61,7 @@ export async function getWalkingRoute(
         const startPoint = { longitude: coordinates[0][0], latitude: coordinates[0][1] };
         const endPoint = { longitude: coordinates[1][0], latitude: coordinates[1][1] };
         
-        // Вычисляем bearing между первыми двумя точками
+        // Вычисляем bearing первого сегмента маршрута
         const φ1 = startPoint.latitude * Math.PI / 180;
         const φ2 = endPoint.latitude * Math.PI / 180;
         const Δλ = (endPoint.longitude - startPoint.longitude) * Math.PI / 180;
@@ -114,7 +114,7 @@ export async function getWalkingRouteWithGeometry(
     if (data.routes && data.routes.length > 0) {
       const route = data.routes[0];
       
-      // Получаем направление первого сегмента маршрута
+      // Получаем направление первого сегмента маршрута для навигации
       const coordinates = route.geometry.coordinates;
       let bearing = 0;
       
@@ -122,7 +122,7 @@ export async function getWalkingRouteWithGeometry(
         const startPoint = { longitude: coordinates[0][0], latitude: coordinates[0][1] };
         const endPoint = { longitude: coordinates[1][0], latitude: coordinates[1][1] };
         
-        // Вычисляем bearing между первыми двумя точками
+        // Вычисляем bearing первого сегмента маршрута
         const φ1 = startPoint.latitude * Math.PI / 180;
         const φ2 = endPoint.latitude * Math.PI / 180;
         const Δλ = (endPoint.longitude - startPoint.longitude) * Math.PI / 180;
@@ -168,6 +168,73 @@ export function getDirectBearing(start: Location, end: Location): number {
 
   const θ = Math.atan2(y, x);
   return (θ * 180 / Math.PI + 360) % 360;
+}
+
+// Навигация по сегментам маршрута
+export function getCurrentSegmentBearing(
+  currentLocation: Location,
+  routeGeometry: any
+): number | null {
+  if (!routeGeometry?.geometry?.coordinates) return null;
+  
+  const coordinates = routeGeometry.geometry.coordinates;
+  if (coordinates.length < 2) return null;
+  
+  // Находим ближайший сегмент маршрута
+  let closestSegmentIndex = 0;
+  let minDistance = Infinity;
+  
+  for (let i = 0; i < coordinates.length - 1; i++) {
+    const segmentStart = {
+      latitude: coordinates[i][1],
+      longitude: coordinates[i][0]
+    };
+    const segmentEnd = {
+      latitude: coordinates[i + 1][1],
+      longitude: coordinates[i + 1][0]
+    };
+    
+    // Вычисляем расстояние до сегмента
+    const distanceToStart = calculateDistance(currentLocation, segmentStart);
+    const distanceToEnd = calculateDistance(currentLocation, segmentEnd);
+    const segmentDistance = calculateDistance(segmentStart, segmentEnd);
+    
+    // Используем расстояние до ближайшей точки сегмента
+    const distanceToSegment = Math.min(distanceToStart, distanceToEnd);
+    
+    if (distanceToSegment < minDistance) {
+      minDistance = distanceToSegment;
+      closestSegmentIndex = i;
+    }
+  }
+  
+  // Вычисляем направление текущего сегмента
+  const segmentStart = {
+    latitude: coordinates[closestSegmentIndex][1],
+    longitude: coordinates[closestSegmentIndex][0]
+  };
+  const segmentEnd = {
+    latitude: coordinates[closestSegmentIndex + 1][1],
+    longitude: coordinates[closestSegmentIndex + 1][0]
+  };
+  
+  return getDirectBearing(segmentStart, segmentEnd);
+}
+
+// Вспомогательная функция для вычисления расстояния
+function calculateDistance(point1: Location, point2: Location): number {
+  const R = 6371000; // радиус Земли в метрах
+  const φ1 = point1.latitude * Math.PI / 180;
+  const φ2 = point2.latitude * Math.PI / 180;
+  const Δφ = (point2.latitude - point1.latitude) * Math.PI / 180;
+  const Δλ = (point2.longitude - point1.longitude) * Math.PI / 180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // расстояние в метрах
 }
 
 // Форматирование расстояния для отображения

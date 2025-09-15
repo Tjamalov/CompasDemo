@@ -20,7 +20,7 @@
 
       <div v-if="currentLocation && selectedPoint" class="compass-section">
         <CompassArrow 
-          :bearing="routeData?.bearing || 0"
+          :bearing="compassBearing"
           :device-heading="deviceHeading"
           :compass-accuracy="compassAccuracy"
         />
@@ -53,12 +53,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { MapPinIcon } from '@heroicons/vue/24/outline';
 import type { Point, Location, RouteData, CompassState } from '@/types';
 import { initDatabase, getAllPoints, getPointById, saveDatabase } from '@/database/sqlite';
 import { getCurrentLocation as getCurrentLocationUtil, watchLocation, clearLocationWatch } from '@/utils/geolocation';
 import { calculateRoute, calculateRouteWithGeometry } from '@/utils/route';
+import { getCurrentSegmentBearing } from '@/utils/mapbox';
 import { createCompass, isCompassSupported, requestCompassPermission, type CompassData } from '@/utils/compass';
 import { initTelegram } from '@/utils/telegram';
 import PointSelector from './PointSelector.vue';
@@ -96,6 +97,94 @@ const compass = ref<ReturnType<typeof createCompass> | null>(null);
 const currentLocation = computed(() => state.value.currentLocation);
 const selectedPoint = computed(() => state.value.selectedPoint);
 const routeData = computed(() => state.value.routeData);
+
+// Направление для компаса - навигация по сегментам маршрута
+const compassBearing = computed(() => {
+  if (!currentLocation.value || !selectedPoint.value) return 0;
+  
+  // Если есть геометрия маршрута, используем навигацию по сегментам
+  if (routeGeometry.value) {
+    const segmentBearing = getCurrentSegmentBearing(currentLocation.value, routeGeometry.value);
+    if (segmentBearing !== null) {
+      console.log('Компас: используем направление текущего сегмента маршрута:', segmentBearing);
+      return segmentBearing;
+    }
+  }
+  
+  // Если есть маршрут без геометрии, используем его направление
+  if (routeData.value?.bearing) {
+    console.log('Компас: используем направление маршрута:', routeData.value.bearing);
+    return routeData.value.bearing;
+  }
+  
+  // Fallback: вычисляем прямое направление к точке
+  const [lng, lat] = selectedPoint.value.coordinates.split(',').map(Number);
+  const targetLocation = { latitude: lat, longitude: lng };
+  
+  const φ1 = currentLocation.value.latitude * Math.PI / 180;
+  const φ2 = targetLocation.latitude * Math.PI / 180;
+  const Δλ = (targetLocation.longitude - currentLocation.value.longitude) * Math.PI / 180;
+
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+
+  const θ = Math.atan2(y, x);
+  const directBearing = (θ * 180 / Math.PI + 360) % 360;
+  
+  console.log('Компас: используем прямое направление:', directBearing);
+  return directBearing;
+});
+
+// Watchers
+
+// Обновляем маршрут при изменении местоположения
+watch(currentLocation, async (newLocation, oldLocation) => {
+  if (newLocation && selectedPoint.value && oldLocation) {
+    // Вычисляем расстояние в метрах
+    const R = 6371000; // радиус Земли в метрах
+    const φ1 = oldLocation.latitude * Math.PI / 180;
+    const φ2 = newLocation.latitude * Math.PI / 180;
+    const Δφ = (newLocation.latitude - oldLocation.latitude) * Math.PI / 180;
+    const Δλ = (newLocation.longitude - oldLocation.longitude) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c; // расстояние в метрах
+    
+    // Обновляем маршрут чаще для навигации
+    if (distance > 5) { // каждые 5 метров
+      console.log(`Обновление маршрута: перемещение на ${Math.round(distance)}м`);
+      await updateRoute();
+    }
+  }
+}, { deep: true });
+
+// Обновляем направление компаса при каждом изменении местоположения
+// (без пересчета маршрута, только направление)
+watch(currentLocation, (newLocation, oldLocation) => {
+  if (newLocation && selectedPoint.value && oldLocation) {
+    // Вычисляем расстояние в метрах
+    const R = 6371000;
+    const φ1 = oldLocation.latitude * Math.PI / 180;
+    const φ2 = newLocation.latitude * Math.PI / 180;
+    const Δφ = (newLocation.latitude - oldLocation.latitude) * Math.PI / 180;
+    const Δλ = (newLocation.longitude - oldLocation.longitude) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    
+    // Обновляем направление компаса каждые 2 метра для плавности
+    if (distance > 2) {
+      console.log(`Обновление направления компаса: перемещение на ${Math.round(distance)}м`);
+      // Направление обновится автоматически через computed compassBearing
+    }
+  }
+}, { deep: true });
 
 // Инициализация приложения
 onMounted(async () => {

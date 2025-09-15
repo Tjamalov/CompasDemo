@@ -56,7 +56,7 @@ export function watchLocation(
   const options: PositionOptions = {
     enableHighAccuracy: true,
     timeout: 10000,
-    maximumAge: 30000 // 30 секунд
+    maximumAge: 5000 // 5 секунд для навигации
   };
 
   return navigator.geolocation.watchPosition(

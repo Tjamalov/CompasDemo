@@ -90,10 +90,7 @@ async function initMap(): Promise<void> {
 function updateMap(): void {
   if (!map.value || !map.value.isStyleLoaded()) return;
 
-  // Очищаем существующие источники и слои
-  clearMap();
-
-  // Добавляем маркеры и маршрут
+  // Добавляем/обновляем маркеры и маршрут
   addMarkers();
   addRoute();
   
@@ -105,19 +102,19 @@ function updateMap(): void {
 function clearMap(): void {
   if (!map.value) return;
 
-  // Удаляем существующие источники
-  const sources = ['route', 'start-marker', 'end-marker'];
-  sources.forEach(source => {
-    if (map.value!.getSource(source)) {
-      map.value!.removeSource(source);
-    }
-  });
-
-  // Удаляем существующие слои
+  // Сначала удаляем слои, потом источники
   const layers = ['route-line', 'start-marker-layer', 'end-marker-layer'];
   layers.forEach(layer => {
     if (map.value!.getLayer(layer)) {
       map.value!.removeLayer(layer);
+    }
+  });
+
+  // Затем удаляем источники
+  const sources = ['route', 'start-marker', 'end-marker'];
+  sources.forEach(source => {
+    if (map.value!.getSource(source)) {
+      map.value!.removeSource(source);
     }
   });
 }
@@ -127,9 +124,23 @@ function addMarkers(): void {
   if (!map.value || !props.currentLocation || !props.selectedPoint) return;
 
   // Маркер текущего местоположения
-  map.value.addSource('start-marker', {
-    type: 'geojson',
-    data: {
+  if (!map.value.getSource('start-marker')) {
+    map.value.addSource('start-marker', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [props.currentLocation.longitude, props.currentLocation.latitude]
+        },
+        properties: {
+          title: 'Ваше местоположение'
+        }
+      }
+    });
+  } else {
+    // Обновляем данные существующего источника
+    (map.value.getSource('start-marker') as any).setData({
       type: 'Feature',
       geometry: {
         type: 'Point',
@@ -138,14 +149,28 @@ function addMarkers(): void {
       properties: {
         title: 'Ваше местоположение'
       }
-    }
-  });
+    });
+  }
 
   // Маркер точки назначения
   const [lng, lat] = props.selectedPoint.coordinates.split(',').map(Number);
-  map.value.addSource('end-marker', {
-    type: 'geojson',
-    data: {
+  if (!map.value.getSource('end-marker')) {
+    map.value.addSource('end-marker', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [lng, lat]
+        },
+        properties: {
+          title: props.selectedPoint.name
+        }
+      }
+    });
+  } else {
+    // Обновляем данные существующего источника
+    (map.value.getSource('end-marker') as any).setData({
       type: 'Feature',
       geometry: {
         type: 'Point',
@@ -154,58 +179,69 @@ function addMarkers(): void {
       properties: {
         title: props.selectedPoint.name
       }
-    }
-  });
+    });
+  }
 
-  // Слои маркеров
-  map.value.addLayer({
-    id: 'start-marker-layer',
-    type: 'circle',
-    source: 'start-marker',
-    paint: {
-      'circle-radius': 8,
-      'circle-color': '#3b82f6',
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff'
-    }
-  });
+  // Слои маркеров (добавляем только если их нет)
+  if (!map.value.getLayer('start-marker-layer')) {
+    map.value.addLayer({
+      id: 'start-marker-layer',
+      type: 'circle',
+      source: 'start-marker',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#3b82f6',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff'
+      }
+    });
+  }
 
-  map.value.addLayer({
-    id: 'end-marker-layer',
-    type: 'circle',
-    source: 'end-marker',
-    paint: {
-      'circle-radius': 10,
-      'circle-color': '#ef4444',
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff'
-    }
-  });
+  if (!map.value.getLayer('end-marker-layer')) {
+    map.value.addLayer({
+      id: 'end-marker-layer',
+      type: 'circle',
+      source: 'end-marker',
+      paint: {
+        'circle-radius': 10,
+        'circle-color': '#ef4444',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff'
+      }
+    });
+  }
 }
 
 // Добавление маршрута
 function addRoute(): void {
   if (!map.value || !props.routeGeometry) return;
 
-  map.value.addSource('route', {
-    type: 'geojson',
-    data: props.routeGeometry
-  });
+  if (!map.value.getSource('route')) {
+    map.value.addSource('route', {
+      type: 'geojson',
+      data: props.routeGeometry
+    });
+  } else {
+    // Обновляем данные существующего источника
+    (map.value.getSource('route') as any).setData(props.routeGeometry);
+  }
 
-  map.value.addLayer({
-    id: 'route-line',
-    type: 'line',
-    source: 'route',
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
-    },
-    paint: {
-      'line-color': '#3b82f6',
-      'line-width': 4,
-      'line-opacity': 0.8
-    }
-  });
+  if (!map.value.getLayer('route-line')) {
+    map.value.addLayer({
+      id: 'route-line',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#3b82f6',
+        'line-width': 4,
+        'line-opacity': 0.8
+      }
+    });
+  }
 }
 
 // Фокусировка на маршруте

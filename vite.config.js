@@ -1,11 +1,16 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Загружаем переменные окружения
+  const env = loadEnv(mode, process.cwd(), '')
+  
+  
+  return {
   plugins: [
     vue(),
     vueDevTools(),
@@ -33,7 +38,10 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
-    'import.meta.env.VITE_MAPBOX_ACCESS_TOKEN': JSON.stringify(process.env.VITE_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1IjoiY3JlbyIsImEiOiJjbXZ6Z2V6Z2V6Z2V6In0.example'),
-    'import.meta.env.VITE_TELEGRAM_BOT_TOKEN': JSON.stringify(process.env.VITE_TELEGRAM_BOT_TOKEN || ''),
+    'import.meta.env.VITE_MAPBOX_ACCESS_TOKEN': JSON.stringify(env.VITE_MAPBOX_ACCESS_TOKEN),
+    'import.meta.env.VITE_TELEGRAM_BOT_TOKEN': JSON.stringify(env.VITE_TELEGRAM_BOT_TOKEN || ''),
+  },
+  // Загружаем переменные окружения из .env файла
+  envPrefix: 'VITE_'
   }
 })

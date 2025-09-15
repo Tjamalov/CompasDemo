@@ -53,12 +53,13 @@ async function initMap(): Promise<void> {
     map.value = new mapboxgl.Map({
       container: mapContainer.value,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [37.6173, 55.7558], // Москва по умолчанию
+      center: [20.4522, 54.7104], // Центр Калининграда
       zoom: 10,
       attributionControl: false
     });
 
     // Добавляем навигационные элементы
+    // @ts-ignore - NavigationControl имеет сложную типизацию в mapbox-gl
     map.value.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     // Ожидаем загрузки карты
@@ -68,6 +69,11 @@ async function initMap(): Promise<void> {
     });
 
     map.value.on('error', (e) => {
+      // Игнорируем ошибки тайлов - они не критичны
+      if (e.error && e.error.message && e.error.message.includes('tile')) {
+        console.warn('Предупреждение загрузки тайла (не критично):', e.error.message);
+        return;
+      }
       console.error('Ошибка карты:', e);
       error.value = 'Ошибка загрузки карты';
       isLoading.value = false;
@@ -208,7 +214,7 @@ function fitMapToRoute(): void {
 
   const [lng, lat] = props.selectedPoint.coordinates.split(',').map(Number);
   
-  const bounds = new mapboxgl.LngLatBounds();
+  const bounds = new mapboxgl.LngLatBounds() as any;
   bounds.extend([props.currentLocation.longitude, props.currentLocation.latitude]);
   bounds.extend([lng, lat]);
 

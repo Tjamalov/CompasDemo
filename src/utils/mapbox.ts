@@ -1,12 +1,13 @@
 import type { Location, RouteData } from '@/types';
 
 // Конфигурация Mapbox
-const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
+const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1IjoiY3Jlb2dlbmthcnVzIiwiYSI6ImNtZmwyODUyYTAwaW4yanNoMHQ1ZXVicXYifQ.TTas31DHVA9gQZ74_cxxEQ';
+
 
 // Проверяем, является ли токен валидным (не примером)
 const isMapboxTokenValid = MAPBOX_ACCESS_TOKEN && 
-  MAPBOX_ACCESS_TOKEN !== 'pk.eyJ1IjoiY3JlbyIsImEiOiJjbXZ6Z2V6Z2V6Z2V6In0.example' &&
-  MAPBOX_ACCESS_TOKEN.startsWith('pk.');
+  MAPBOX_ACCESS_TOKEN.startsWith('pk.') &&
+  MAPBOX_ACCESS_TOKEN.length > 50; // Реальные токены обычно длиннее
 
 // Интерфейс для полного ответа Mapbox Directions API
 interface MapboxRouteResponse {

@@ -60,11 +60,10 @@ export async function initDatabase(): Promise<void> {
 // Добавление тестовых данных
 function insertSampleData(): void {
   const samplePoints: Omit<Point, 'id'>[] = [
-    { coordinates: '37.6173,55.7558', name: 'Красная площадь' },
-    { coordinates: '86.9250,27.9881', name: 'Гора Эверест' },
-    { coordinates: '107.7500,53.2167', name: 'Озеро Байкал' },
     { coordinates: '20.4522,54.7104', name: 'Центр Калининграда' },
-    { coordinates: '20.4750,54.9600', name: 'Центр Зеленоградска' }
+    { coordinates: '20.4750,54.9601', name: 'Центр Зеленоградска' },
+    { coordinates: '20.7500,55.0833', name: 'Куршская коса' },
+    { coordinates: '20.1517,54.9431', name: 'Центр Светлогорска' }
   ];
   
   const insertQuery = db.prepare('INSERT INTO points (coordinates, name) VALUES (?, ?)');
@@ -235,11 +234,10 @@ function initFallbackDatabase(): void {
   // Если данных нет, добавляем тестовые
   if (fallbackData.length === 0) {
     fallbackData = [
-      { id: 1, coordinates: '37.6173,55.7558', name: 'Красная площадь', description: '', createdAt: new Date().toISOString() },
-      { id: 2, coordinates: '86.9250,27.9881', name: 'Гора Эверест', description: '', createdAt: new Date().toISOString() },
-      { id: 3, coordinates: '107.7500,53.2167', name: 'Озеро Байкал', description: '', createdAt: new Date().toISOString() },
-      { id: 4, coordinates: '20.4522,54.7104', name: 'Центр Калининграда', description: '', createdAt: new Date().toISOString() },
-      { id: 5, coordinates: '20.4750,54.9600', name: 'Центр Зеленоградска', description: '', createdAt: new Date().toISOString() }
+      { id: 1, coordinates: '20.4522,54.7104', name: 'Центр Калининграда', description: '', createdAt: new Date().toISOString() },
+      { id: 2, coordinates: '20.4750,54.9601', name: 'Центр Зеленоградска', description: '', createdAt: new Date().toISOString() },
+      { id: 3, coordinates: '20.7500,55.0833', name: 'Куршская коса', description: '', createdAt: new Date().toISOString() },
+      { id: 4, coordinates: '20.1517,54.9431', name: 'Центр Светлогорска', description: '', createdAt: new Date().toISOString() }
     ];
     saveFallbackData();
   }

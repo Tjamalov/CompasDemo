@@ -1,0 +1,29 @@
+{
+  "name": "compas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@heroicons/vue": "^2.2.0",
+    "@telegram-apps/bridge": "^2.11.0",
+    "@telegram-apps/sdk": "^3.11.5",
+    "mapbox-gl": "^3.15.0",
+    "sql.js": "^1.13.0",
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/mapbox-gl": "^3.4.1",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "vite": "^7.0.6",
+    "vite-plugin-vue-devtools": "^8.0.0"
+  }
+}

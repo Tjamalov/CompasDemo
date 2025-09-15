@@ -35,6 +35,7 @@ const map = ref<mapboxgl.Map | null>(null);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
+
 // Инициализация карты
 async function initMap(): Promise<void> {
   if (!mapContainer.value || !isMapboxAvailable()) {
@@ -50,19 +51,27 @@ async function initMap(): Promise<void> {
     mapboxgl.accessToken = getMapboxToken();
 
     // Создаем карту
+    // @ts-ignore - Mapbox имеет сложную типизацию
     map.value = new mapboxgl.Map({
       container: mapContainer.value,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [20.4522, 54.7104], // Центр Калининграда
-      zoom: 10,
-      attributionControl: false
+      zoom: 15, // Увеличенный начальный зум
+      minZoom: 15, // Минимальный зум
+      maxZoom: 18, // Максимальный зум
+      attributionControl: false,
+      scrollZoom: false, // Отключаем зум колесиком мыши
+      boxZoom: false, // Отключаем зум выделением
+      doubleClickZoom: false, // Отключаем зум двойным кликом
+      keyboard: false, // Отключаем управление клавиатурой
+      dragRotate: false, // Отключаем поворот карты
+      touchZoomRotate: false // Отключаем зум и поворот на мобильных
     });
 
-    // Добавляем навигационные элементы
-    // @ts-ignore - NavigationControl имеет сложную типизацию в mapbox-gl
-    map.value.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    // Убираем элементы управления картой
 
     // Ожидаем загрузки карты
+    // @ts-ignore - Mapbox имеет сложную типизацию
     map.value.on('load', () => {
       isLoading.value = false;
       updateMap();
@@ -248,15 +257,11 @@ function addRoute(): void {
 function fitMapToRoute(): void {
   if (!map.value || !props.currentLocation || !props.selectedPoint) return;
 
-  const [lng, lat] = props.selectedPoint.coordinates.split(',').map(Number);
-  
-  const bounds = new mapboxgl.LngLatBounds() as any;
-  bounds.extend([props.currentLocation.longitude, props.currentLocation.latitude]);
-  bounds.extend([lng, lat]);
-
-  map.value.fitBounds(bounds, {
-    padding: 50,
-    maxZoom: 16
+  // Фокусируемся только на текущем местоположении с сильным зумом
+  map.value.easeTo({
+    center: [props.currentLocation.longitude, props.currentLocation.latitude],
+    zoom: 18, // Очень сильный зум
+    duration: 1000
   });
 }
 
@@ -351,4 +356,5 @@ onUnmounted(() => {
   margin: 0;
   padding: 1rem;
 }
+
 </style>

@@ -59,7 +59,6 @@ import type { Point, Location, RouteData, CompassState } from '@/types';
 import { initDatabase, getAllPoints, getPointById, saveDatabase } from '@/database/sqlite';
 import { getCurrentLocation as getCurrentLocationUtil, watchLocation, clearLocationWatch } from '@/utils/geolocation';
 import { calculateRoute, calculateRouteWithGeometry } from '@/utils/route';
-import { getCurrentSegmentBearing } from '@/utils/mapbox';
 import { createCompass, isCompassSupported, requestCompassPermission, type CompassData } from '@/utils/compass';
 import { initTelegram } from '@/utils/telegram';
 import PointSelector from './PointSelector.vue';
@@ -98,26 +97,11 @@ const currentLocation = computed(() => state.value.currentLocation);
 const selectedPoint = computed(() => state.value.selectedPoint);
 const routeData = computed(() => state.value.routeData);
 
-// Направление для компаса - навигация по сегментам маршрута
+// Направление для компаса - всегда к финальной точке
 const compassBearing = computed(() => {
   if (!currentLocation.value || !selectedPoint.value) return 0;
   
-  // Если есть геометрия маршрута, используем навигацию по сегментам
-  if (routeGeometry.value) {
-    const segmentBearing = getCurrentSegmentBearing(currentLocation.value, routeGeometry.value);
-    if (segmentBearing !== null) {
-      console.log('Компас: используем направление текущего сегмента маршрута:', segmentBearing);
-      return segmentBearing;
-    }
-  }
-  
-  // Если есть маршрут без геометрии, используем его направление
-  if (routeData.value?.bearing) {
-    console.log('Компас: используем направление маршрута:', routeData.value.bearing);
-    return routeData.value.bearing;
-  }
-  
-  // Fallback: вычисляем прямое направление к точке
+  // Вычисляем прямое направление к финальной точке
   const [lng, lat] = selectedPoint.value.coordinates.split(',').map(Number);
   const targetLocation = { latitude: lat, longitude: lng };
   
@@ -131,7 +115,6 @@ const compassBearing = computed(() => {
   const θ = Math.atan2(y, x);
   const directBearing = (θ * 180 / Math.PI + 360) % 360;
   
-  console.log('Компас: используем прямое направление:', directBearing);
   return directBearing;
 });
 

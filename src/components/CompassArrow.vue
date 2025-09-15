@@ -6,15 +6,6 @@
     >
       <ChevronUpIcon class="arrow-icon" />
     </div>
-    <div class="compass-circle">
-      <!-- Маркировки направлений -->
-      <div class="compass-markers">
-        <div class="marker marker-north">С</div>
-        <div class="marker marker-east">В</div>
-        <div class="marker marker-south">Ю</div>
-        <div class="marker marker-west">З</div>
-      </div>
-    </div>
     
     <!-- Индикатор качества компаса -->
     <div v-if="compassQuality !== 'unknown'" class="compass-quality" :class="`quality-${compassQuality}`">
@@ -64,8 +55,8 @@ const qualityText = computed(() => {
 <style scoped>
 .compass-container {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 120px;
+  height: 120px;
   margin: 2rem auto;
   display: flex;
   align-items: center;
@@ -80,79 +71,10 @@ const qualityText = computed(() => {
 }
 
 .arrow-icon {
-  width: 60px;
-  height: 60px;
+  width: 80px;
+  height: 80px;
   color: #ef4444; /* red-500 */
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-}
-
-.compass-circle {
-  width: 180px;
-  height: 180px;
-  border: 3px solid #e5e7eb; /* gray-200 */
-  border-radius: 50%;
-  background: linear-gradient(45deg, #f3f4f6 0%, #e5e7eb 100%);
-  box-shadow: 
-    inset 0 2px 4px rgba(0, 0, 0, 0.1),
-    0 4px 12px rgba(0, 0, 0, 0.15);
-  position: relative;
-}
-
-.compass-circle::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 4px;
-  height: 4px;
-  background: #374151; /* gray-700 */
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.8);
-  z-index: 2;
-}
-
-/* Маркировки направлений */
-.compass-markers {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-}
-
-.marker {
-  position: absolute;
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151; /* gray-700 */
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-  z-index: 1;
-}
-
-.marker-north {
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.marker-east {
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-}
-
-.marker-south {
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.marker-west {
-  top: 50%;
-  left: 8px;
-  transform: translateY(-50%);
 }
 
 /* Индикатор качества компаса */
@@ -197,22 +119,13 @@ const qualityText = computed(() => {
 /* Адаптивность */
 @media (max-width: 640px) {
   .compass-container {
-    width: 160px;
-    height: 160px;
+    width: 100px;
+    height: 100px;
   }
   
   .arrow-icon {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .compass-circle {
-    width: 140px;
-    height: 140px;
-  }
-  
-  .marker {
-    font-size: 10px;
+    width: 60px;
+    height: 60px;
   }
   
   .compass-quality {

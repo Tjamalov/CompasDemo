@@ -19,7 +19,11 @@
       />
 
       <div v-if="currentLocation && selectedPoint" class="compass-section">
-        <CompassArrow :bearing="routeData?.bearing || 0" />
+        <CompassArrow 
+          :bearing="routeData?.bearing || 0"
+          :device-heading="deviceHeading"
+          :compass-accuracy="compassAccuracy"
+        />
         
         <DistanceDisplay
           :distance="routeData?.distance || null"
@@ -39,12 +43,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { MapPinIcon } from '@heroicons/vue/24/outline';
 import type { Point, Location, RouteData, CompassState } from '@/types';
 import { initDatabase, getAllPoints, getPointById, saveDatabase } from '@/database/sqlite';
 import { getCurrentLocation as getCurrentLocationUtil, watchLocation, clearLocationWatch } from '@/utils/geolocation';
-import { getWalkingRoute, getDirectBearing } from '@/utils/mapbox';
+import { calculateRoute } from '@/utils/route';
+import { createCompass, isCompassSupported, requestCompassPermission, type CompassData } from '@/utils/compass';
 import { initTelegram } from '@/utils/telegram';
 import PointSelector from './PointSelector.vue';
 import CompassArrow from './CompassArrow.vue';
@@ -68,6 +73,13 @@ const routeError = ref<string | null>(null);
 const points = ref<Point[]>([]);
 const watchId = ref<number | null>(null);
 
+// Состояние компаса
+const deviceHeading = ref(0);
+const compassAccuracy = ref<number | null>(null);
+const compassError = ref<string | null>(null);
+const compassSupported = ref(false);
+const compass = ref<ReturnType<typeof createCompass> | null>(null);
+
 // Вычисляемые свойства
 const currentLocation = computed(() => state.value.currentLocation);
 const selectedPoint = computed(() => state.value.selectedPoint);
@@ -90,6 +102,9 @@ onMounted(async () => {
     
     // Начинаем отслеживание геолокации
     startLocationWatching();
+    
+    // Инициализируем компас
+    await initCompass();
     
     // Сохраняем базу данных периодически
     setInterval(saveDatabase, 30000); // каждые 30 секунд
@@ -174,6 +189,51 @@ async function handlePointChange(pointId: number | null): Promise<void> {
   }
 }
 
+// Инициализация компаса
+async function initCompass(): Promise<void> {
+  try {
+    compassSupported.value = isCompassSupported();
+    
+    if (!compassSupported.value) {
+      console.warn('Компас не поддерживается в этом браузере');
+      return;
+    }
+
+    // Запрашиваем разрешение на доступ к датчикам
+    const hasPermission = await requestCompassPermission();
+    if (!hasPermission) {
+      compassError.value = 'Нет разрешения на доступ к датчикам компаса';
+      return;
+    }
+
+    // Создаем экземпляр компаса
+    compass.value = createCompass({
+      frequency: 100,
+      enableHighAccuracy: true
+    });
+
+    // Начинаем отслеживание
+    const success = compass.value.start(
+      (data: CompassData) => {
+        deviceHeading.value = data.heading;
+        compassAccuracy.value = data.accuracy;
+        compassError.value = null;
+      },
+      (error: Error) => {
+        compassError.value = error.message;
+        console.error('Ошибка компаса:', error);
+      }
+    );
+
+    if (!success) {
+      compassError.value = 'Не удалось запустить компас';
+    }
+  } catch (error) {
+    compassError.value = 'Ошибка инициализации компаса';
+    console.error('Ошибка инициализации компаса:', error);
+  }
+}
+
 // Обновление маршрута
 async function updateRoute(): Promise<void> {
   if (!state.value.currentLocation || !state.value.selectedPoint) {
@@ -183,21 +243,15 @@ async function updateRoute(): Promise<void> {
   try {
     routeError.value = null;
     
-    // Парсим координаты точки
-    const [lng, lat] = state.value.selectedPoint.coordinates.split(',').map(Number);
-    const targetLocation: Location = { latitude: lat, longitude: lng };
-    
-    // Пытаемся получить пешеходный маршрут
-    let route = await getWalkingRoute(state.value.currentLocation, targetLocation);
-    
-    // Если маршрут не получен, используем прямое направление
-    if (!route) {
-      const bearing = getDirectBearing(state.value.currentLocation, targetLocation);
-      route = {
-        distance: 0, // расстояние будем вычислять отдельно
-        bearing: bearing
-      };
-    }
+    // Используем новую утилиту для вычисления маршрута
+    const route = await calculateRoute(
+      state.value.currentLocation, 
+      state.value.selectedPoint,
+      {
+        useMapbox: true,
+        fallbackToDirect: true
+      }
+    );
     
     state.value.routeData = route;
   } catch (error) {
@@ -207,11 +261,15 @@ async function updateRoute(): Promise<void> {
 }
 
 // Очистка при размонтировании
-import { onUnmounted } from 'vue';
 onUnmounted(() => {
   if (watchId.value) {
     clearLocationWatch(watchId.value);
   }
+  
+  if (compass.value) {
+    compass.value.stop();
+  }
+  
   saveDatabase();
 });
 </script>
